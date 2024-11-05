@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    image: debian:10
+    container_name: debian_app
+    ports:
+      - "8080:80"      # Expose Nginx on port 8080
+      - "2222:22"      # Expose SSH on port 2222
+    volumes:
+      - ./installation_files/:/home/appuser/installation_files/
+    environment:
+      - PATH="/root/venv/bin:$PATH"  # Set PATH to include virtual environment
+    command: |
+      bash -c "
+        # Update package index and install dependencies
+        apt-get update && \
+        apt-get install -y --no-install-recommends python3 python3-pip python3-setuptools && \
+
+        # Upgrade pip to avoid dependency issues
+        pip3 install --upgrade pip && \
+
+        # Install a compatible version of cryptography first
+        pip3 install cryptography==3.3.2 && \
+
+        
+        # Install a compatible Ansible version
+        pip3 install ansible==4.10.0 && \
+
+        # Run the Ansible playbook to set up the environment
+        ansible-playbook /home/appuser/installation_files/playbook.yml && \
+
+        # Start the Python application
+        /root/venv/bin/python /home/appuser/installation_files/app.py
+      "

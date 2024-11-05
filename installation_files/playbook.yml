@@ -1,0 +1,82 @@
+---
+- name: Set up frontend and backend services on Debian 10
+  hosts: localhost
+  become: true
+  tasks:
+    - name: Update package index
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - build-essential
+          - libffi-dev
+          - libssl-dev
+          - nginx
+          - openssh-server
+        state: present
+
+    - name: Create a new non-root user
+      ansible.builtin.user:
+        name: appuser
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Set up SSH directories for the new user
+      ansible.builtin.file:
+        path: /home/appuser/.ssh
+        state: directory
+        mode: '0700'
+        owner: appuser
+        group: appuser
+
+    - name: Copy SSH authorized keys for the new user
+      ansible.builtin.copy:
+        src: /home/appuser/installation_files/rsa.pub
+        dest: /home/appuser/.ssh/authorized_keys
+        owner: appuser
+        group: appuser
+        mode: '0600'
+
+    - name: Start SSH service
+      ansible.builtin.service:
+        name: ssh
+        state: started
+
+    - name: Copy Nginx configuration file
+      ansible.builtin.copy:
+        src: /home/appuser/installation_files/default.conf
+        dest: /etc/nginx/conf.d/default.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Create Python virtual environment
+      ansible.builtin.command:
+        cmd: python3 -m venv /root/venv
+      args:
+        creates: /root/venv
+
+    - name: Install dependencies from requirements.txt in virtual environment
+      ansible.builtin.pip:
+        requirements: /home/appuser/installation_files/requirements.txt
+        virtualenv: /root/venv
+
+    - name: Copy frontend index.html to nginx web root
+      ansible.builtin.copy:
+        src: /home/appuser/installation_files/index.html
+        dest: /usr/share/nginx/html/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Start nginx service
+      ansible.builtin.service:
+        name: nginx
+        state: started
+      environment:
+        PATH: "/root/venv/bin:{{ ansible_env.PATH }}"  # Update PATH for this task only

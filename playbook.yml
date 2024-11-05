@@ -8,6 +8,18 @@
         cmd: apk update && apk add nginx python3 py3-pip
       ignore_errors: yes
 
+    - name: Ensure Python virtual environment is created
+      ansible.builtin.command:
+        cmd: python3 -m venv /root/venv
+      args:
+        creates: /root/venv  # Prevents re-running if the virtual environment already exists
+    
+    - name: Install dependencies in the virtual environment
+      ansible.builtin.pip:
+        requirements: /root/requirements.txt
+        virtualenv: /root/venv
+        virtualenv_command: python3 -m venv
+
     - name: Install Flask with pip
       ansible.builtin.pip:
         name: Flask
@@ -21,5 +33,60 @@
         group: nginx
         mode: '0644'
 
+    - name: Copy default.conf to nginx config file
+      copy:
+        src: /root/default.conf
+        dest: /etc/nginx/http.d/default.conf
+        owner: nginx
+        group: nginx
+        mode: '0644'
+
     - name: Start nginx service
       ansible.builtin.command: nginx
+
+    - name: Create a new non-root user
+      ansible.builtin.user:
+        name: testuser       # Replace 'testuser' with the desired username
+        shell: /bin/bash   # Set the default shell
+
+    - name: Create .ssh directory for the new user
+      ansible.builtin.file:
+        path: /home/testuser/.ssh
+        state: directory
+        owner: testuser
+        group: testuser
+        mode: '0700'
+
+    - name: Copy public key to authorized_keys
+      ansible.builtin.copy:
+        src: /root/rsa.pub
+        dest: /home/testuser/.ssh/authorized_keys
+        owner: testuser
+        group: testuser
+        mode: '0600'
+
+    - name: Ensure SSH is configured for the new user
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "AllowUsers testuser"  # Ensure only 'testuser' can SSH in
+        create: yes
+
+    - name: Generate SSH host keys
+      ansible.builtin.command:
+        cmd: ssh-keygen -A
+
+    - name: Ensure PasswordAuthentication is disabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication yes'
+        line: 'PasswordAuthentication no'
+        state: present
+        create: yes
+
+    - name: Ensure PubkeyAuthentication is enabled
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PubkeyAuthentication'
+        line: 'PubkeyAuthentication yes'
+        state: present
+        create: yes

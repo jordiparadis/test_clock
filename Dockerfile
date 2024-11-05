@@ -15,20 +15,22 @@ RUN apk update && \
         build-base \
         libffi-dev \
         openssl-dev \
-        nginx
+        nginx \
+        openssh 
+
+# Configure SSH
+RUN mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
 # Copy the application files
 COPY app.py .
 COPY index.html .
 COPY requirements.txt .
 COPY playbook.yml .
-
-# Copy the Nginx configuration file
-COPY default.conf /etc/nginx/http.d/default.conf
-
-# Create and activate a virtual environment, then install dependencies
-RUN python3 -m venv /root/venv && \
-    /root/venv/bin/pip install --no-cache-dir -r requirements.txt
+COPY default.conf .
+COPY ssh_keys/rsa.pub .
 
 # Set the PATH to use the virtual environment by default
 ENV PATH="/root/venv/bin:$PATH"
@@ -37,7 +39,7 @@ ENV PATH="/root/venv/bin:$PATH"
 RUN ansible-playbook playbook.yml
 
 # Expose necessary ports (80 for nginx and 5000 for Flask backend)
-EXPOSE 80 5000
+EXPOSE 80 5000 22
 
 # Start both nginx and Flask backend
-CMD ["sh", "-c", "nginx && /root/venv/bin/python /root/app.py"]
+CMD ["sh", "-c", "nginx && /usr/sbin/sshd && /root/venv/bin/python /root/app.py"]

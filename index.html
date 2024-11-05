@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <title>Clocker</title>
   <style type="text/css">
@@ -43,44 +44,40 @@
     }
   </style>
 </head>
+
 <body>
   <div class="clock">
     <div id="clockTime"></div>
     <div id="clockDate"></div>
   </div>
   <script>
-    ((window, document, undefined) =>
-    {
+    ((window, document, undefined) => {
       'use strict';
 
-      const CLOCK_URL = '/clock';
+      const CLOCK_URL = 'http://localhost:5001/clock';
 
       const clockTime = document.getElementById('clockTime');
       const clockDate = document.getElementById('clockDate');
 
-      function fetchEpoch(onFetch)
-      {
+      function fetchEpoch(onFetch) {
         return fetch(CLOCK_URL)
-          .then(response =>
-            response.text().then(onFetch)
-          );
+          .then(response => response.json())
+          .then(data => onFetch(data.timestamp))
+          .catch(error => console.error("Error fetching timestamp:", error));
       }
 
-      function refreshClock()
-      {
+      function refreshClock() {
         return fetchEpoch(setClockEpoch);
       }
 
-      function setClockEpoch(epoch)
-      {
+      function setClockEpoch(epoch) {
         const date = new Date(0);
         date.setUTCSeconds(epoch);
         clockTime.textContent = formatTime(date);
         clockDate.textContent = formatDate(date);
       }
 
-      function formatDate(date)
-      {
+      function formatDate(date) {
         return [
           ('0' + date.getDate()).slice(-2),
           ('0' + (date.getMonth() + 1)).slice(-2),
@@ -88,8 +85,7 @@
         ].join('/');
       }
 
-      function formatTime(date)
-      {
+      function formatTime(date) {
         return [
           ("0" + date.getHours()).slice(-2),
           ("0" + date.getMinutes()).slice(-2),
@@ -97,8 +93,7 @@
         ].join(':');
       }
 
-      function clockInterval(interval)
-      {
+      function clockInterval(interval) {
         return setInterval(refreshClock, interval || 500)
       }
 
@@ -107,4 +102,5 @@
     })(window, document, undefined);
   </script>
 </body>
+
 </html>

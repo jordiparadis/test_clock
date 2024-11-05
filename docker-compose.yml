@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .  # Path to the Dockerfile
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"     # Map host port 8080 to container port 80 for Nginx
+      - "5001:5000"   # Map host port 5001 to container port 5000 for Flask
+      - "2222:22"     # Map host port 2222 to container port 22 for SSH
+    volumes:
+      - ./shh_keys/rsa.pub:/root/.ssh/authorized_keys:ro
+    restart: always   # Automatically restart on failure
